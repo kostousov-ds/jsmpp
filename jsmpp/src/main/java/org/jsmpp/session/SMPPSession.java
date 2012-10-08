@@ -269,7 +269,7 @@ public class SMPPSession extends AbstractSession implements ClientSession {
 	 * @param bindType is the bind type.
 	 * @param systemId is the system id.
 	 * @param password is the password.
-	 * @param systemTypeis the system type.
+	 * @param systemType is the system type.
 	 * @param interfaceVersion is the interface version.
 	 * @param addrTon is the address TON.
 	 * @param addrNpi is the address NPI.

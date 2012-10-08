@@ -418,9 +418,10 @@ public abstract class AbstractSession implements Session {
                 try {
                     sendEnquireLink();
                 } catch (ResponseTimeoutException e) {
+		    logger.debug("ResponseTimeoutException received: {}", e.getMessage());
                     close();
                 } catch (InvalidResponseException e) {
-                    // lets unbind gracefully
+                    logger.debug("InvalidResponseException received: {}", e.getMessage());
                     unbindAndClose();
                 } catch (IOException e) {
                     close();
