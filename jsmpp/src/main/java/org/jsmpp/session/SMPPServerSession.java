@@ -22,7 +22,6 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jsmpp.DefaultPDUReader;
 import org.jsmpp.DefaultPDUSender;
@@ -41,6 +40,7 @@ import org.jsmpp.bean.Command;
 import org.jsmpp.bean.DataCoding;
 import org.jsmpp.bean.DataSm;
 import org.jsmpp.bean.ESMClass;
+import org.jsmpp.bean.InterfaceVersion;
 import org.jsmpp.bean.MessageState;
 import org.jsmpp.bean.NumberingPlanIndicator;
 import org.jsmpp.bean.OptionalParameter;
@@ -79,7 +79,6 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
     
     private ServerMessageReceiverListener messageReceiverListener;
     private ServerResponseDeliveryListener responseDeliveryListener;
-    private final EnquireLinkSender enquireLinkSender;
     private BindRequestReceiver bindRequestReceiver = new BindRequestReceiver(responseHandler);
     
     public SMPPServerSession(Connection conn,
@@ -148,11 +147,6 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         }
     }
     
-    private synchronized boolean isReadPdu() {
-        SessionState sessionState = sessionContext.getSessionState();
-        return sessionState.isBound() || sessionState.equals(SessionState.OPEN);
-    }
-    
     public void deliverShortMessage(String serviceType,
             TypeOfNumber sourceAddrTon, NumberingPlanIndicator sourceAddrNpi,
             String sourceAddr, TypeOfNumber destAddrTon,
@@ -196,40 +190,36 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         if (messageReceiverListener != null) {
             return messageReceiverListener.onAcceptSubmitSm(submitSm, this);
         }
-        String msg = "Receiving message but server hasn't " + ServerMessageReceiverListener.class + " yet";
-        logger.warn(msg);
-        System.err.println(msg);
-        throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RX_R_APPN);
+        logger.warn("Received SubmitSm but MessageReceiverListener is null, returning SMPP error");
+        throw new ProcessRequestException("No message receiver listener registered",
+                SMPPConstant.STAT_ESME_RX_R_APPN);
     }
     
     private SubmitMultiResult fireAcceptSubmitMulti(SubmitMulti submitMulti) throws ProcessRequestException {
         if (messageReceiverListener != null) {
             return messageReceiverListener.onAcceptSubmitMulti(submitMulti, this);
         }
-        String msg = "Receiving message but server hasn't " + ServerMessageReceiverListener.class + " yet";
-        logger.warn(msg);
-        System.err.println(msg);
-        throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RX_R_APPN);
+        logger.warn("Received SubmitMultiSm but MessageReceiverListener is null, returning SMPP error");
+        throw new ProcessRequestException("No message receiver listener registered",
+                SMPPConstant.STAT_ESME_RX_R_APPN);
     }
     
     private QuerySmResult fireAcceptQuerySm(QuerySm querySm) throws ProcessRequestException {
         if (messageReceiverListener != null) {
             return messageReceiverListener.onAcceptQuerySm(querySm, this);
         }
-        String msg = "Receiving message but server hasn't " + ServerMessageReceiverListener.class + " yet";
-        logger.warn(msg);
-        System.err.println(msg);
-        throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RX_R_APPN);
+        logger.warn("Received SubmitQuerySm but MessageReceiverListener is null, returning SMPP error");
+        throw new ProcessRequestException("No message receiver listener registered", 
+                SMPPConstant.STAT_ESME_RX_R_APPN);
     }
     
     private void fireAcceptReplaceSm(ReplaceSm replaceSm) throws ProcessRequestException {
         if (messageReceiverListener != null) {
             messageReceiverListener.onAcceptReplaceSm(replaceSm, this);
         } else {
-            String msg = "Receiving message but server hasn't " + ServerMessageReceiverListener.class + " yet";
-            logger.warn(msg);
-            System.err.println(msg);
-            throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RX_R_APPN);
+            logger.warn("Received SubmitMultiSm but MessageReceiverListener is null, returning SMPP error");
+            throw new ProcessRequestException("No message receiver listener registered",
+                    SMPPConstant.STAT_ESME_RX_R_APPN);
         }
     }
     
@@ -237,10 +227,9 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         if (messageReceiverListener != null) {
             messageReceiverListener.onAcceptCancelSm(cancelSm, this);
         } else {
-            String msg = "Receiving message but server hasn't " + ServerMessageReceiverListener.class + " yet";
-            logger.warn(msg);
-            System.err.println(msg);
-            throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RX_R_APPN);
+            logger.warn("Received SubmitMultiSm but MessageReceiverListener is null, returning SMPP error");
+            throw new ProcessRequestException("No message receiver listener registered",
+                    SMPPConstant.STAT_ESME_RX_R_APPN);
         }
     }
     
@@ -329,10 +318,10 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
             pduSender().sendUnbindResp(out, SMPPConstant.STAT_ESME_ROK, sequenceNumber);
         }
         
-        public void sendBindResp(String systemId, BindType bindType, int sequenceNumber) throws IOException {
+        public void sendBindResp(String systemId, InterfaceVersion interfaceVersion, BindType bindType, int sequenceNumber) throws IOException {
             sessionContext.bound(bindType);
             try {
-                pduSender().sendBindResp(out, bindType.responseCommandId(), sequenceNumber, systemId);
+                pduSender().sendBindResp(out, bindType.responseCommandId(), sequenceNumber, systemId, interfaceVersion);
             } catch (PDUStringException e) {
                 logger.error("Failed sending bind response", e);
                 // TODO uudashr: we have double checking when accept the bind request
@@ -345,13 +334,19 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         
         public MessageId processSubmitSm(SubmitSm submitSm)
                 throws ProcessRequestException {
-            MessageId messageId = fireAcceptSubmitSm(submitSm);
-            if (messageId == null) {
-                String msg = "Invalid message_id, shouldn't null value. " + ServerMessageReceiverListener.class + "#onAcceptSubmitSm(SubmitSm) return null value";
-                System.err.println(msg);
-                throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RX_R_APPN);
+            try {
+                MessageId messageId = fireAcceptSubmitSm(submitSm);
+                if (messageId == null) {
+                    String msg = "Invalid message_id, shouldn't null value. " + ServerMessageReceiverListener.class + "#onAcceptSubmitSm(SubmitSm) return null value";
+                    logger.error(msg);
+                    throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RX_R_APPN);
+                }
+                return messageId;
+            } catch(Exception e) {
+                String msg = "Invalid runtime exception thrown when processing SubmitSm";
+                logger.error(msg, e);
+                throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RSYSERR);
             }
-            return messageId;
         }
         
         public void sendSubmitSmResponse(MessageId messageId, int sequenceNumber)
@@ -378,7 +373,13 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         
         public SubmitMultiResult processSubmitMulti(SubmitMulti submitMulti)
                 throws ProcessRequestException {
-            return fireAcceptSubmitMulti(submitMulti);
+            try {
+                return fireAcceptSubmitMulti(submitMulti);
+            } catch(Exception e) {
+                String msg = "Invalid runtime exception thrown when processing SubmitMultiSm";
+                logger.error(msg, e);
+                throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RSYSERR);
+            }
         }
         
         public void sendSubmitMultiResponse(
@@ -407,7 +408,13 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         
         public QuerySmResult processQuerySm(QuerySm querySm)
                 throws ProcessRequestException {
-            return fireAcceptQuerySm(querySm);
+            try {
+                return fireAcceptQuerySm(querySm);
+            } catch(Exception e) {
+                String msg = "Invalid runtime exception thrown when processing QuerySm";
+                logger.error(msg, e);
+                throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RSYSERR);
+            }
         }
         
         public void sendQuerySmResp(String messageId, String finalDate,
@@ -426,7 +433,13 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         
         public DataSmResult processDataSm(DataSm dataSm)
                 throws ProcessRequestException {
-            return fireAcceptDataSm(dataSm);
+            try {
+                return fireAcceptDataSm(dataSm);
+            } catch(Exception e) {
+                String msg = "Invalid runtime exception thrown when processing DataSm";
+                logger.error(msg, e);
+                throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RSYSERR);
+            }
         }
         
         // TODO uudashr: we can generalize this method 
@@ -447,7 +460,13 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         
         public void processCancelSm(CancelSm cancelSm)
                 throws ProcessRequestException {
-            fireAcceptCancelSm(cancelSm);
+            try {
+                fireAcceptCancelSm(cancelSm);
+            } catch(Exception e) {
+                String msg = "Invalid runtime exception thrown when processing CancelSm";
+                logger.error(msg, e);
+                throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RSYSERR);
+            }
         }
         
         public void sendCancelSmResp(int sequenceNumber) throws IOException {
@@ -457,7 +476,13 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
         
         public void processReplaceSm(ReplaceSm replaceSm)
                 throws ProcessRequestException {
-            fireAcceptReplaceSm(replaceSm);
+            try {
+                fireAcceptReplaceSm(replaceSm);
+            } catch(Exception e) {
+                String msg = "Invalid runtime exception thrown when processing ReplaceSm";
+                logger.error(msg, e);
+                throw new ProcessRequestException(msg, SMPPConstant.STAT_ESME_RSYSERR);
+            }
         }
         
         public void sendReplaceSmResp(int sequenceNumber) throws IOException {
@@ -515,58 +540,15 @@ public class SMPPServerSession extends AbstractSession implements ServerSession 
          * Notify for no activity.
          */
         private void notifyNoActivity() {
-            logger.debug("No activity notified");
+            logger.debug("No activity notified, sending enquireLink");
             enquireLinkSender.enquireLink();
         }
     }
     
-    private class EnquireLinkSender extends Thread {
-        private final AtomicBoolean sendingEnquireLink = new AtomicBoolean(false);
-        
-        @Override
-        public void run() {
-            logger.info("Starting EnquireLinkSender");
-            while (isReadPdu()) {
-                while (!sendingEnquireLink.compareAndSet(true, false) && isReadPdu()) {
-                    synchronized (sendingEnquireLink) {
-                        try {
-                            sendingEnquireLink.wait(500);
-                        } catch (InterruptedException e) {
-                        }
-                    }
-                }
-                if (!isReadPdu()) {
-                    break;
-                }
-                try {
-                    sendEnquireLink();
-                } catch (ResponseTimeoutException e) {
-                    close();
-                } catch (InvalidResponseException e) {
-                    // lets unbind gracefully
-                    unbindAndClose();
-                } catch (IOException e) {
-                    close();
-                }
-            }
-            logger.info("EnquireLinkSender stop");
-        }
-        
-        /**
-         * This method will send enquire link asynchronously.
-         */
-        public void enquireLink() {
-            if (sendingEnquireLink.compareAndSet(false, true)) {
-                synchronized (sendingEnquireLink) {
-                    sendingEnquireLink.notify();
-                }
-            }
-        }
-    }
     
     private class BoundStateListener implements SessionStateListener {
         public void onStateChange(SessionState newState, SessionState oldState,
-                Object source) {
+        		Session source) {
             if (newState.isBound()) {
                 enquireLinkSender.start();
             }
