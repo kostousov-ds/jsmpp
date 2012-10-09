@@ -4,7 +4,7 @@
 
     <groupId>org.jsmpp</groupId>
     <artifactId>jsmpp-pom</artifactId>
-    <version>2.2.0-kds-SNAPSHOT</version>
+    <version>2.2.0.kds-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -195,8 +195,20 @@
     </build>
 
     <scm>
-        <connection>scm:git:ssh://git@github.com:uudashr/jsmpp.git</connection>
+        <connection>scm:git:ssh://git@github.com:kostousov-ds/jsmpp.git</connection>
         <developerConnection>scm:git:ssh://git@github.com:kostousov-ds/jsmpp.git</developerConnection>
     </scm>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <uniqueVersion>false</uniqueVersion>
+            <id>Techinfocom maven repository</id>
+            <url>scpexe://techinfocom.com/data/maven2</url>
+        </snapshotRepository>
+        <repository>
+            <uniqueVersion>false</uniqueVersion>
+            <id>Techinfocom maven repository</id>
+            <url>scpexe://techinfocom.com/data/maven2</url>
+        </repository>
+    </distributionManagement>
 </project>
