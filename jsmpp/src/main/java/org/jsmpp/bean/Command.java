@@ -129,7 +129,7 @@ public class Command implements Serializable {
     public void setSequenceNumber(int sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
     }
-    
+
     @Override
     public String toString() {
         return "PDUHeader(" + commandLength + ", " + getCommandIdAsHex() + ", " + getCommandStatusAsHex() + ", " + sequenceNumber + ")";
@@ -175,5 +175,7 @@ public class Command implements Serializable {
             return false;
         return true;
     }
-    
+
+
+
 }
