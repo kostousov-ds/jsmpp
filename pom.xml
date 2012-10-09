@@ -195,8 +195,8 @@
     </build>
 
     <scm>
-        <connection>scm:git:ssh://git@github.com:kostousov-ds/jsmpp.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com:kostousov-ds/jsmpp.git</developerConnection>
+        <connection>scm:git:ssh://git@github.com/kostousov-ds/jsmpp.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/kostousov-ds/jsmpp.git</developerConnection>
     </scm>
 
     <distributionManagement>
