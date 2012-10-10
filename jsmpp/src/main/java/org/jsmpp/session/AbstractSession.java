@@ -237,7 +237,7 @@ public abstract class AbstractSession implements Session {
         if (messageReceiverListener != null) {
             return messageReceiverListener.onAcceptDataSm(dataSm, this);
         } else {
-            throw new ProcessRequestException("MessageReceveiverListener hasn't been set yet", SMPPConstant.STAT_ESME_RX_R_APPN);
+            throw new ProcessRequestException("MessageReceiverListener hasn't been set yet", SMPPConstant.STAT_ESME_RX_R_APPN);
         }
     }
     

@@ -117,24 +117,27 @@ public class DefaultDecomposer implements PDUDecomposer {
         return req;
     }
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see org.jsmpp.util.PDUDecomposer#bindResp(byte[])
-     */
-    public BindResp bindResp(byte[] b) throws PDUStringException {
-        BindResp resp = new BindResp();
-        SequentialBytesReader reader = new SequentialBytesReader(b);
-        assignHeader(resp, reader);
-        if (resp.getCommandLength() > 16 && resp.getCommandStatus() == 0) {
-            resp.setSystemId(reader.readCString());
-            StringValidator.validateString(resp.getSystemId(),
-                    StringParameter.SYSTEM_ID);
+	/*
+	 * (non-Javadoc)
+	 *
+	 * @see org.jsmpp.util.PDUDecomposer#bindResp(byte[])
+	 */
+	public BindResp bindResp(byte[] b) throws PDUStringException {
+		final String DEBUG_STR = ":bindResp: ";
+		BindResp resp = new BindResp();
+		SequentialBytesReader reader = new SequentialBytesReader(b);
+		assignHeader(resp, reader);
+		if (resp.getCommandLength() > 16 && resp.getCommandStatus() == 0) {
+			resp.setSystemId(reader.readCString());
+			StringValidator.validateString(resp.getSystemId(),
+				StringParameter.SYSTEM_ID);
 
-            resp.setOptionalParameters(readOptionalParameters(reader));
-        }
-        return resp;
-    }
+			OptionalParameter[] optionalParameters = readOptionalParameters(reader);
+			logger.trace("{} optional parameters {}", DEBUG_STR, optionalParameters);
+				resp.setOptionalParameters(optionalParameters);
+		}
+		return resp;
+	}
 
     /*
      * (non-Javadoc)
