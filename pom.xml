@@ -4,7 +4,7 @@
 
     <groupId>org.jsmpp</groupId>
     <artifactId>jsmpp-pom</artifactId>
-    <version>2.2.3.kds-SNAPSHOT</version>
+    <version>2.4.0.kds-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
